@@ -108,12 +108,93 @@ k3d image import dot-net-default-web-api:latest
 * Publicar a imagem em um registry, como o DockerHub por exemplo
 ```
 # Build da imagem seguindo os padroes
-docker build -t kakoferrare/dot-net-default-web-api:latest:v1 .
+docker build -t kakoferrare/dot-net-default-web-api:latest .
 
 # Login no DockerHub
 docker login
 
 #Enviar pro DockerHub
 docker push kakoferrare/dot-net-default-web-api:latest  
+```
+
+### Criar arquivo Deployment.yaml
+Precisamos criar um arquivo de deploy com as especificações do nosso Pod, ele geralmente fica na pasta k8s
 
 ```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dotnet-default-web-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dotnet-default-web-api
+  template:
+    metadata:
+      labels:
+        app: dotnet-default-web-api
+    spec:
+      containers:
+        - name: dotnet-default-web-api
+          image: kakoferrare/dot-net-default-web-api:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+```
+
+Apenas com esse arquivo já tudo que precisamos para subir o pod com a imagem no cluster, com o comando
+```
+kubectl apply -f ./k8s/deployment.yaml
+```
+
+Conferir se o pod subiu no k3d
+```
+kubectl get pod
+kubectl logs dotnet-default-web-api-845d4cdd84-q2fxc
+kubectl get pod -o wide
+```
+
+Como ainda não subimos o service, que expoe o pod, caso queira acessa-lo e ver se aplicação responde.
+Precisamos do port-forward
+```
+kubectl port-forward <nome-do-pod> <porta-local>:<porta-do-pod>
+```
+Com esse comando conseguimos acessar pelo local a aplicação rodando no pod
+
+
+## Service
+Service é um recurso fundamental que permite definir uma maneira lógica de acessar um conjunto de pods como um único serviço. Ele abstrai a complexidade da comunicação entre os pods e proporciona um método estável para acessar as aplicações, mesmo que os pods subjacentes possam mudar ao longo do tempo.
+
+Para isso vamos criar o arquivo service.yaml
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotnet-default-web-api
+spec:
+  selector:
+    app: dotnet-default-web-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+
+```
+
+Para verificar o serviço
+```
+kubectl get service
+
+## Caso quisermos ver mais detalhes, ou até avaliar se tem algum erro no service
+kubectl describe svc dotnet-default-web-api
+```
+E tentar acessar o serviço:
+http://localhost:8080/Name
