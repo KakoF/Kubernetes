@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dotnet-default-web-api
 spec:
-  replicas: 1
+  replicas: 8
   selector:
     matchLabels:
       app: dotnet-default-web-api
